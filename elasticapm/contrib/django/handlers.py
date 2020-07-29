@@ -39,6 +39,7 @@ from django.apps import apps
 from django.conf import settings as django_settings
 from django.core import exceptions
 
+from elasticapm.base import Client
 from elasticapm.handlers.logging import LoggingHandler as BaseLoggingHandler
 from elasticapm.utils.logging import get_logger
 
@@ -46,12 +47,21 @@ logger = get_logger("elasticapm.logging")
 
 
 class LoggingHandler(BaseLoggingHandler):
-    def __init__(self, level=logging.NOTSET):
+    def __init__(self, level=logging.NOTSET, *args, **kwargs):
+        self._client = None
+        if "client" in kwargs:
+            self.client = kwargs.pop("client")
+        elif len(args) > 0:
+            arg = args[0]
+            if isinstance(arg, Client):
+                self.client = arg
         # skip initialization of BaseLoggingHandler
         logging.Handler.__init__(self, level=level)
 
     @property
     def client(self):
+        if self._client:
+            return self._client
         try:
             app = apps.get_app_config("elasticapm.contrib.django")
             if not app.client:
@@ -61,6 +71,10 @@ class LoggingHandler(BaseLoggingHandler):
                 logger.warning("Can't send log message to APM server, Django apps registry not ready yet")
         except LookupError:
             logger.warning("Can't send log message to APM server, elasticapm.contrib.django not in INSTALLED_APPS")
+
+    @client.setter
+    def client(self, val):
+        self._client = val
 
     def _emit(self, record, **kwargs):
         from elasticapm.contrib.django.middleware import LogMiddleware
