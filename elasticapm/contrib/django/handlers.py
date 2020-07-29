@@ -37,6 +37,7 @@ import warnings
 
 from django.apps import apps
 from django.conf import settings as django_settings
+from django.core import exceptions
 
 from elasticapm.handlers.logging import LoggingHandler as BaseLoggingHandler
 from elasticapm.utils.logging import get_logger
@@ -56,6 +57,8 @@ class LoggingHandler(BaseLoggingHandler):
             if not app.client:
                 logger.warning("Can't send log message to APM server, Django apps not initialized yet")
             return app.client
+        except exceptions.AppRegistryNotReady:
+                logger.warning("Can't send log message to APM server, Django apps registry not ready yet")
         except LookupError:
             logger.warning("Can't send log message to APM server, elasticapm.contrib.django not in INSTALLED_APPS")
 
